@@ -3,7 +3,7 @@
  * Run: node tests/test-queue.js   (exit 0 = all pass)
  */
 var assert = require('assert');
-var PCCore = require('../app/core.js');
+var PCCore = require('../core.js');
 
 var passed = 0;
 function check(name, fn) {

@@ -69,7 +69,7 @@ documents by Task ID; it does not replace them.
 
 - Record: `data/seed.json` (format `pcc-1`, documented in
   `docs/DATA-MODEL.md`).
-- Logic: `app/core.js` — `promoteIdea`, `dispatchTask`, `completeTask`,
+- Logic: core.js — `promoteIdea`, `dispatchTask`, `completeTask`,
   `acceptTask`, `addPrerequisite`, `blockersFor`, `mergeRecords`. Pure
   functions, usable from Node or the browser, no DOM dependency.
 - Tests: `tests/test-queue.js` — run before claiming any queue behaviour

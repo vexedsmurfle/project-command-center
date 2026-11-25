@@ -9,9 +9,8 @@ There are exactly two copies of the record, with a strict ranking:
    "Muse - ChatGPT Task Exchange". This is the record that survives
    browser clears, VM swaps and device loss. Export from the app
    (Export JSON button) and upload it to Drive; that upload IS the save.
-   `app/data/seed.json` is only a bundled first-run copy of the same
-   file (so the static site works standalone); the Drive copy is
-   canonical and the two must be kept in sync on release.
+   `data/seed.json` in the repo is the bundled first-run copy of the
+   same format; the Drive copy is canonical.
 2. **Browser localStorage (`pcc-store-v1`) — cache.** Fast, offline,
    per-device. It is never the authority. Clearing browser data loses
    nothing durable as long as the last export reached Drive.

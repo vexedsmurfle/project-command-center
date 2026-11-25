@@ -6,13 +6,13 @@ pool. Built 2026-11-25 under **TASK-GPT-20261125-Project-Command-Center**.
 
 ## What it is
 
-- **Responsive PWA** (`app/`): project cards with summary, status, next
+- **Responsive PWA** (repo root): project cards with summary, status, next
   steps, active assignments, blockers and last update. Per-project
   Overview / Tasks / Ideas-backlog / Notebook-decisions / Activity views.
   Search + status filter. Editable notes with timestamps and provenance.
   Stable IDs (`KH-001`, `CG-001`, …) and links to task docs, results,
   repos and PRs.
-- **Dependency-based task queues** (`app/core.js`, tested in
+- **Dependency-based task queues** (core.js, tested in
   `tests/test-queue.js`): prerequisite task IDs, waiting / ready-for-review
   states, completion *and* acceptance gates, cycle prevention, visible
   blockers. When prerequisites complete **and are accepted**, dependents
@@ -48,7 +48,7 @@ duplicated.
 ## Run locally
 
 ```sh
-cd app
+cd project-command-center
 python3 -m http.server 8000
 # open http://localhost:8000 — set a passcode on first visit
 ```

@@ -3,7 +3,7 @@
 Run: `node tests/test-queue.js` (exit 0 = all pass). 15 tests, all passing
 as of 2026-11-25.
 
-## Covered by automated tests (`tests/test-queue.js`, `app/core.js`)
+## Covered by automated tests (`tests/test-queue.js`, core.js)
 
 1. Prerequisite satisfied (done + accepted) → dependent `queued` →
    `ready` (ready-for-review).
@@ -34,7 +34,7 @@ dependent as unblocked when it actually reaches `ready`.
 
 ## Verified by hand (2026-11-25)
 
-- `node --check` on `app/core.js` and `app/app.js`: clean.
+- `node --check` on core.js and `app/app.js`: clean.
 - `data/seed.json` parses; all seeded task/idea/notebook IDs are unique
   (checked in the test suite's seed test and by inspection).
 - App served locally via `python3 -m http.server` and smoke-checked
@@ -42,11 +42,17 @@ dependent as unblocked when it actually reaches `ready`.
 
 ## Still unverified / not yet tested
 
-- **Mobile + desktop responsive screenshots:** attempted with a
-  headless Chromium install; if the install failed in this environment,
-  screenshots are listed as BLOCKED in the result file rather than
-  faked. Re-run with a real browser before claiming this acceptance
-  item.
+- **Mobile + desktop responsive screenshots:** VERIFIED 2026-11-25 with
+  the sandboxed Chromium via puppeteer-core (`screenshots/shot.js`).
+  `screenshots/desktop-cards.png`, `desktop-project.png`,
+  `desktop-tasks.png`, `mobile-cards.png`, `mobile-project.png`,
+  `mobile-tasks.png` — all six viewed and confirmed rendering. Note: the
+  sandboxed browser cannot reach this VM's loopback server, so shots
+  were taken over `file://` with the seed injected into localStorage
+  (the app's normal first-run path). This also caught a real bug: the
+  `.auth-gate { display:flex }` rule overrode the `hidden` attribute,
+  so the gate stayed visible after unlock — fixed with
+  `[hidden]{display:none!important}` and re-verified.
 - **Note create/read/edit across sessions:** the code path is exercised
   by the app (localStorage persistence + Export/Import), but a true
   two-session round-trip (edit in browser A, import in browser B) was

@@ -2,13 +2,12 @@
 
 ## Hosting: GitHub Pages (free, $0)
 
-The app is a static site (`app/` — no build step, no backend). It is
+The app is a static site (repo root — no build step, no backend). It is
 deployed from the `main` branch via GitHub Pages:
 
 1. Repo: `https://github.com/vexedsmurfle/project-command-center`
-   (branch `main`; app source in `app/`, served from the repo root
-   through the `app/` directory — see "Pages source" below).
-2. GitHub Pages serves the `app/` folder on the `main` branch.
+   (branch `main`; Pages source: branch `main`, path `/`).
+2. GitHub Pages serves the repo root on the `main` branch.
 3. Live URL: `https://vexedsmurfle.github.io/project-command-center/`
 
 Verify after deploy: the page loads, the passcode gate appears, a seeded
@@ -19,7 +18,7 @@ local run below is the verified path and the Pages URL is the next step
 ## Run locally (verified)
 
 ```sh
-cd project-command-center/app
+cd project-command-center
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
