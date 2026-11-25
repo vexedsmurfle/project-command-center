@@ -88,7 +88,7 @@
     if (raw) { try { state = JSON.parse(raw); } catch (e) { state = null; } }
     if (!state) {
       // Seed from the bundled seed.json at first run.
-      fetch('../data/seed.json').then(function (r) { return r.json(); }).then(function (seed) {
+      fetch('data/seed.json').then(function (r) { return r.json(); }).then(function (seed) {
         state = { version: 1, updatedAt: new Date().toISOString(), projects: seed.projects || [], audit: seed.audit || [] };
         baseSnapshot = JSON.parse(JSON.stringify(state));
         save();
