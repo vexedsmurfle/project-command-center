@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Command Center</title>
+<meta name="description" content="Persistent project notebook and management dashboard — Drive-backed, idea-promotion gated, dependency-aware.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b1e3a">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="auth-gate" class="auth-gate">
+  <div class="auth-card">
+    <h1>Project Command Center</h1>
+    <p class="muted">Authenticated access. First visit sets a local passcode (stored only on this device, hashed). Real deployments should use Firebase Auth / Google sign-in — see <code>docs/DEPLOYMENT.md</code>.</p>
+    <label>Passcode <input id="passcode" type="password" autocomplete="current-password" placeholder="Enter passcode"></label>
+    <button id="unlock-btn" class="btn primary">Unlock</button>
+    <p id="auth-msg" class="error" role="alert"></p>
+    <p class="muted small">No credentials or private data are sent anywhere by this page. Data lives in this browser until you export it to Drive.</p>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header>
+    <div>
+      <h1>Project Command Center</h1>
+      <p class="muted">Drive-backed project notebook · ideas never become assignments without your approval</p>
+    </div>
+    <div class="header-actions">
+      <input id="search" type="search" placeholder="Search projects, tasks, notes…" aria-label="Search">
+      <select id="status-filter" aria-label="Filter by status">
+        <option value="">All statuses</option>
+        <option value="active">Active</option>
+        <option value="paused">Paused</option>
+        <option value="waiting">Waiting</option>
+        <option value="in-progress">In progress</option>
+        <option value="done">Done</option>
+        <option value="idea">Ideas</option>
+      </select>
+      <button id="export-btn" class="btn">Export JSON (→ Drive)</button>
+      <label class="btn">Import JSON <input id="import-file" type="file" accept="application/json" hidden></label>
+      <button id="lock-btn" class="btn">Lock</button>
+    </div>
+  </header>
+
+  <div id="conflict-banner" class="banner" hidden></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <main>
+    <section id="cards" class="cards" aria-label="Projects"></section>
+    <section id="detail" class="detail" aria-label="Project detail" hidden>
+      <button id="back-btn" class="btn">← All projects</button>
+      <h2 id="detail-name"></h2>
+      <p id="detail-summary" class="muted"></p>
+      <nav class="tabs" role="tablist">
+        <button data-tab="overview" role="tab" class="active">Overview</button>
+        <button data-tab="tasks" role="tab">Tasks</button>
+        <button data-tab="ideas" role="tab">Ideas / backlog</button>
+        <button data-tab="notebook" role="tab">Notebook / decisions</button>
+        <button data-tab="activity" role="tab">Activity</button>
+      </nav>
+      <div id="tab-overview" class="tab-panel"></div>
+      <div id="tab-tasks" class="tab-panel" hidden></div>
+      <div id="tab-ideas" class="tab-panel" hidden></div>
+      <div id="tab-notebook" class="tab-panel" hidden></div>
+      <div id="tab-activity" class="tab-panel" hidden></div>
+    </section>
+  </main>
+
+  <footer class="muted small">
+    Source of truth: Google Drive Task Exchange folder “Muse - ChatGPT Task Exchange” + the exported JSON record. Local browser copy is a cache only. See <code>docs/DATA-MODEL.md</code> for sync, dedup, conflicts, permissions and backups. Cost: $0 (static hosting, no backend).
+  </footer>
+</div>
+
+<dialog id="promote-dialog">
+  <form method="dialog" id="promote-form">
+    <h3>Promote idea to authorized task</h3>
+    <p class="muted">This is a deliberate, audited step. An idea becomes an assignment only with your explicit approval — approver, scope and owner are all required and recorded.</p>
+    <p><strong id="promote-idea-title"></strong></p>
+    <label>Approved by <input id="promote-by" required placeholder="e.g. Ryan"></label>
+    <label>Owner <input id="promote-owner" required placeholder="Who does the work?"></label>
+    <label>Scope <textarea id="promote-scope" required placeholder="What exactly is authorized — and what is not?"></textarea></label>
+    <label class="check"><input type="checkbox" id="promote-confirm" required> I authorize this as an executable assignment.</label>
+    <div class="dialog-actions">
+      <button value="cancel" class="btn">Cancel</button>
+      <button id="promote-submit" value="promote" class="btn primary">Promote to task</button>
+    </div>
+    <p id="promote-error" class="error"></p>
+  </form>
+</dialog>
+
+<dialog id="dispatch-dialog">
+  <form method="dialog" id="dispatch-form">
+    <h3>Authorize development</h3>
+    <p class="muted">Starting work needs your explicit authorization every time. Nothing is auto-dispatched.</p>
+    <p><strong id="dispatch-task-title"></strong></p>
+    <label>Authorized by <input id="dispatch-by" required placeholder="e.g. Ryan"></label>
+    <div class="dialog-actions">
+      <button value="cancel" class="btn">Cancel</button>
+      <button value="dispatch" class="btn primary">Authorize &amp; start</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
