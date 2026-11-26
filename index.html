@@ -13,11 +13,19 @@
 <div id="auth-gate" class="auth-gate">
   <div class="auth-card">
     <h1>Project Command Center</h1>
-    <p class="muted">Authenticated access. First visit sets a local passcode (stored only on this device, hashed). Real deployments should use Firebase Auth / Google sign-in — see <code>docs/DEPLOYMENT.md</code>.</p>
-    <label>Passcode <input id="passcode" type="password" autocomplete="current-password" placeholder="Enter passcode"></label>
-    <button id="unlock-btn" class="btn primary">Unlock</button>
+    <p class="muted">Authenticated access. No project data is shown or loaded until you sign in — this page ships only the login shell.</p>
+    <p id="firebase-status" class="muted small"></p>
+    <div id="google-block" hidden>
+      <button id="google-signin-btn" class="btn primary">Sign in with Google</button>
+      <p class="muted small">Only the owner account can sign in. Any other Google account is refused and signed straight back out. Project records then load from the owner-only Firestore document.</p>
+    </div>
+    <div id="passcode-block">
+      <p class="muted">Local-only mode: first visit sets a local passcode (stored only on this device, hashed). To enable Google sign-in + cloud sync, see <code>docs/FIREBASE-SETUP.md</code>.</p>
+      <label>Passcode <input id="passcode" type="password" autocomplete="current-password" placeholder="Enter passcode"></label>
+      <button id="unlock-btn" class="btn primary">Unlock</button>
+    </div>
     <p id="auth-msg" class="error" role="alert"></p>
-    <p class="muted small">No credentials or private data are sent anywhere by this page. Data lives in this browser until you export it to Drive.</p>
+    <p class="muted small">No credentials or private data are sent anywhere by this page. Data lives in this browser until you export it to Drive (or, after Google sign-in, sync it to Firestore).</p>
   </div>
 </div>
 
@@ -40,9 +48,11 @@
       </select>
       <button id="export-btn" class="btn">Export JSON (→ Drive)</button>
       <label class="btn">Import JSON <input id="import-file" type="file" accept="application/json" hidden></label>
+      <button id="signout-btn" class="btn" hidden>Sign out</button>
       <button id="lock-btn" class="btn">Lock</button>
     </div>
   </header>
+  <p id="sync-status" class="muted small" style="max-width:1100px;margin:8px auto 0;padding:0 16px"></p>
 
   <div id="conflict-banner" class="banner" hidden></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -69,7 +79,7 @@
   </main>
 
   <footer class="muted small">
-    Source of truth: Google Drive Task Exchange folder “Muse - ChatGPT Task Exchange” + the exported JSON record. Local browser copy is a cache only. See <code>docs/DATA-MODEL.md</code> for sync, dedup, conflicts, permissions and backups. Cost: $0 (static hosting, no backend).
+    Source of truth: Google Drive Task Exchange folder “Muse - ChatGPT Task Exchange” + the exported JSON record. Local browser copy is a cache only; with Google sign-in, the owner-only Firestore document <code>pcc/main</code> is the sync layer. See <code>docs/DATA-MODEL.md</code> for sync, dedup, conflicts, permissions and backups, and <code>docs/FIREBASE-SETUP.md</code> for the owner setup steps. Cost: $0 (static hosting + Firebase free tier, no backend).
   </footer>
 </div>
 
@@ -104,6 +114,8 @@
 </dialog>
 
 <script src="core.js"></script>
+<script src="auth.js"></script>
+<script src="firebase.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

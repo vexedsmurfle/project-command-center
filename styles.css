@@ -45,6 +45,8 @@ main{max-width:1100px;margin:0 auto;padding:16px}
 .auth-card{background:#fff;border-radius:14px;padding:28px;max-width:460px;width:100%}
 .auth-card label{display:block;margin:14px 0}
 .auth-card input{width:100%;margin-top:6px}
+#google-signin-btn{width:100%;margin-top:6px}
+#sync-status{min-height:1.2em}
 dialog{border:1px solid var(--line);border-radius:12px;max-width:520px;width:calc(100% - 32px);padding:20px}
 dialog label{display:block;margin:10px 0}
 dialog input,dialog textarea{width:100%;margin-top:4px}

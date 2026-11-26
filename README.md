@@ -2,7 +2,9 @@
 
 A persistent project notebook and management dashboard, independent of any
 chat history, built for Ryan's Muse ↔ ChatGPT task exchange and AI resource
-pool. Built 2026-11-25 under **TASK-GPT-20261125-Project-Command-Center**.
+pool. Built 2026-11-25 under **TASK-GPT-20261125-Project-Command-Center**;
+secure deployment (Firebase Auth + Firestore, auth-gated data loading) added
+2026-11-25 under **TASK-GPT-20261125-Project-Command-Center-Secure-Deployment**.
 
 ## What it is
 
@@ -10,8 +12,7 @@ pool. Built 2026-11-25 under **TASK-GPT-20261125-Project-Command-Center**.
   steps, active assignments, blockers and last update. Per-project
   Overview / Tasks / Ideas-backlog / Notebook-decisions / Activity views.
   Search + status filter. Editable notes with timestamps and provenance.
-  Stable IDs (`KH-001`, `CG-001`, …) and links to task docs, results,
-  repos and PRs.
+  Stable IDs and links to task docs, results, repos and PRs.
 - **Dependency-based task queues** (core.js, tested in
   `tests/test-queue.js`): prerequisite task IDs, waiting / ready-for-review
   states, completion *and* acceptance gates, cycle prevention, visible
@@ -23,55 +24,64 @@ pool. Built 2026-11-25 under **TASK-GPT-20261125-Project-Command-Center**.
   the audit log, and still does not authorize dispatch. Dispatch needs a
   separate explicit authorization every time. There is no code path from
   idea to work without those two approvals.
-- **Drive-backed records:** the durable record is a JSON file
-  (`data/seed.json` format, `pcc-1`) exported from the app and stored in
-  the Google Drive Task Exchange folder. The browser's localStorage copy
-  is a cache only. See `docs/DATA-MODEL.md` for source of truth, sync,
-  dedup, concurrent edits, permissions and backups.
-- **Authenticated access:** a local passcode gate (SHA-256, device-only)
-  ships in the app. For a shared/hosted deployment, use Firebase Auth /
-  Google sign-in — see `docs/DEPLOYMENT.md`. No credentials or private
-  data are in the repo or the app.
+- **Drive-backed records:** the durable record is a JSON file (format
+  `pcc-1`) exported from the app and stored in the Google Drive Task
+  Exchange folder. The browser's localStorage copy is a cache only. See
+  `docs/DATA-MODEL.md` for source of truth, sync, dedup, concurrent
+  edits, permissions and backups.
+- **Authenticated access:** Google sign-in via Firebase Auth (owner
+  account only, enforced server-side by `firestore.rules`) with
+  Firestore sync, when `firebase-config.js` is present — see
+  `docs/FIREBASE-SETUP.md` for the owner setup steps. Without it, the app
+  runs in local-only mode behind a device passcode gate (SHA-256,
+  device-only). **The public site ships no project records at all:**
+  the login shell is all an unauthenticated visitor sees; records load
+  only after authentication, from Firestore or from a Drive JSON import.
+  Project records live in the Drive exchange and in the owner-only
+  Firestore document — never in this repo.
 
-## Seeded projects (verified records only; unknowns labelled)
+## Seeded projects
 
-Kitchen Hub · Pulse · Ctrl Assist · Caribbean game · AI Gateway / resource
-pool · Project Command Center (itself). Seeded future ideas (NOT
-assignments): Kitchen Hub child chore chart; standalone cross-platform task
-manager; Pulse family location tracking (consent/battery/geofencing
-evaluation first). Caribbean backlog item **Ocean Dynamics and Discovery
-(CG-001)** is seeded QUEUED/WAITING on this Command Center (PCC-001) with
-its full scope preserved verbatim in the notebook — no implementation
-started. Today's Kitchen Hub "Today at a Glance" task is linked, not
-duplicated.
+The record ships with the owner's current projects (loaded after sign-in
+from Firestore, or imported from the Drive JSON export — not from this
+repo). Seeded future ideas are NOT assignments: they stay non-executable
+until deliberately promoted with the owner's approval. Anything labelled
+"unknown" in the record is unverified.
 
 ## Run locally
 
 ```sh
 cd project-command-center
 python3 -m http.server 8000
-# open http://localhost:8000 — set a passcode on first visit
+# open http://localhost:8000 — sign in with Google (if Firebase is
+# configured) or set a passcode on first visit (local-only mode)
 ```
 
 No build step, no backend, no dependencies. `node tests/test-queue.js`
-runs the 15-test suite (exit 0 = all pass).
+runs the queue/gate suite; `node tests/test-secure.js` runs the
+auth-gating and public-bundle security checks.
 
 ## Costs
 
-$0. Static hosting (GitHub Pages), no backend, no paid services. Firebase
-Hosting free tier is the documented alternative.
+$0. Static hosting (GitHub Pages) + Firebase free tier (Auth + Firestore),
+no backend, no paid services, no billing enabled anywhere.
 
 ## Limitations (honest)
 
-- The passcode gate is a device lock, not server-side auth; real shared
-  hosting needs Firebase Auth / Google sign-in (documented, not wired).
-- Sync is manual Export JSON → upload to Drive / Import JSON. There is no
-  live Drive API sync in the browser build; the merge function flags
-  both-sides edits as conflicts for human review instead of silently
-  overwriting.
+- Live Firestore rules enforcement is **untested** until Ryan creates
+  the Firebase project and runs the checks in `docs/FIREBASE-SETUP.md`
+  (Rules Playground + sign-in checks). The rules file is reviewed and
+  covered by static tests, but no live read/write has been attempted
+  against it yet.
+- The passcode gate (local-only mode) is a device lock, not server-side
+  auth; it applies only until Firebase is configured.
+- Sync is manual Export JSON → upload to Drive / Import JSON, plus
+  automatic Firestore sync once signed in. There is no live Drive API
+  sync in the browser build; the merge function flags both-sides edits
+  as conflicts for human review instead of silently overwriting.
 - No automatic merges or deployments anywhere in the system.
 - Status reflects records as of the last export; it never invents
-  progress. Anything labelled "unknown" in the seed data is unverified.
+  progress. Anything labelled "unknown" is unverified.
 
 ## Docs
 
@@ -80,4 +90,6 @@ Hosting free tier is the documented alternative.
 - `docs/INTERFACE.md` — the low-cost read/write interface for ChatGPT
   (via Drive), Muse, Codex and Gemini.
 - `docs/DEPLOYMENT.md` — hosting, auth, setup, costs, failure states.
+- `docs/FIREBASE-SETUP.md` — the exact owner steps to enable Google
+  sign-in + Firestore (free tier, no billing).
 - `docs/TESTS.md` — what was tested, how, and what is still unverified.

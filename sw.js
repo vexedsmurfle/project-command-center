@@ -1,8 +1,10 @@
 /* Project Command Center service worker — cache-first for the app shell.
- * Data is NOT cached here: the record lives in localStorage (cache) and in
- * the exported JSON on Google Drive (durable source of truth). */
-var CACHE = 'pcc-v1';
-var SHELL = ['index.html', 'styles.css', 'app.js', 'core.js', 'manifest.json', 'data/seed.json'];
+ * Data is NOT cached here: the record lives in localStorage (cache), in
+ * Firestore (owner-only, after sign-in) and in the exported JSON on
+ * Google Drive (durable source of truth). No project data is ever in the
+ * shell cache. */
+var CACHE = 'pcc-v2';
+var SHELL = ['index.html', 'styles.css', 'app.js', 'core.js', 'auth.js', 'firebase.js', 'manifest.json'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }));
 });
