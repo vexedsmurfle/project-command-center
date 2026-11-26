@@ -3,6 +3,8 @@
  * Run: node tests/test-queue.js   (exit 0 = all pass)
  */
 var assert = require('assert');
+var fs = require('fs');
+var path = require('path');
 var PCCore = require('../core.js');
 
 var passed = 0;
@@ -149,19 +151,46 @@ check('merge: both-sides change is flagged as a conflict, local kept', function 
   assert.strictEqual(res.merged.records[0].v, 'local');
 });
 
-check('seed data: Ocean Dynamics (CG-001) is waiting on PCC-001 and is not dispatchable', function () {
-  var seed = require('../data/seed.json');
-  var all = [];
-  seed.projects.forEach(function (p) { (p.tasks || []).forEach(function (t) { all.push(t); }); });
-  var cg = all.find(function (t) { return t.id === 'CG-001'; });
-  assert.ok(cg, 'CG-001 exists');
-  assert.deepStrictEqual(cg.prerequisites, ['PCC-001']);
+check('dependency queue: a task waiting on an unaccepted prerequisite is not dispatchable (synthetic fixture)', function () {
+  var all = [
+    { id: 'P-001', status: 'in-progress', prerequisites: [] },
+    { id: 'T-001', status: 'queued', prerequisites: ['P-001'] }
+  ];
   PCCore.recomputeAll(all);
-  assert.strictEqual(cg.status, 'waiting');
-  assert.strictEqual(PCCore.dispatchTask(all, 'CG-001', { authorizedBy: 'Ryan' }).ok, false);
-  var nb = seed.projects.find(function (p) { return p.id === 'caribbean-game'; }).notebook
-    .find(function (n) { return n.id === 'CG-NB-01'; });
-  assert.ok(nb && nb.body.indexOf('simulated wave erosion') !== -1, 'full Ocean Dynamics scope preserved verbatim in notebook');
+  assert.strictEqual(all[1].status, 'waiting');
+  assert.strictEqual(PCCore.dispatchTask(all, 'T-001', { authorizedBy: 'Ryan' }).ok, false);
 });
+
+// The real seed record is local-only and gitignored (see data/README.md):
+// it is present on the developer's machine but absent in a clean checkout.
+// Run the verbatim-scope check when it exists; skip (do not fail) when it does not.
+var seedPath = path.join(__dirname, '..', 'data', 'seed.json');
+if (fs.existsSync(seedPath)) {
+  check('seed data (local-only): the backlog item depending on the Command Center is waiting and is not dispatchable', function () {
+    var seed = require('../data/seed.json');
+    var all = [];
+    seed.projects.forEach(function (p) { (p.tasks || []).forEach(function (t) { all.push(t); }); });
+    // The seeded backlog item that depends on the Command Center task
+    // itself (IDs are read from the record, not hard-coded here, so no
+    // project data leaks into this test file).
+    var ccProject = seed.projects.find(function (p) { return p.id === 'command-center'; });
+    assert.ok(ccProject, 'command-center project exists in the seed');
+    var ccTask = (ccProject.tasks || [])[0];
+    assert.ok(ccTask, 'command-center task exists in the seed');
+    var dependent = all.find(function (t) { return (t.prerequisites || []).indexOf(ccTask.id) !== -1; });
+    assert.ok(dependent, 'a seeded task depends on the Command Center task');
+    PCCore.recomputeAll(all);
+    assert.strictEqual(dependent.status, 'waiting');
+    assert.strictEqual(PCCore.dispatchTask(all, dependent.id, { authorizedBy: 'Ryan' }).ok, false);
+    // Full scope preserved verbatim in the owning project's notebook
+    // (a long body — checked by length, not by quoting it here).
+    var owner = seed.projects.find(function (p) { return (p.tasks || []).some(function (t) { return t.id === dependent.id; }); });
+    assert.ok(owner && owner.notebook && owner.notebook.length, 'owning project has notebook entries');
+    assert.ok(owner.notebook.some(function (n) { return n.body && n.body.length > 500; }),
+      'full scope preserved verbatim in a notebook entry');
+  });
+} else {
+  console.log('SKIP  seed data test — data/seed.json is gitignored/local-only (see data/README.md)');
+}
 
 console.log(passed + ' tests passed.');

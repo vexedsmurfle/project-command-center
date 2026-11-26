@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// Project Command Center — Firestore security rules.
+//
+// OWNER-ONLY. Exactly one Google account may read or write project data:
+//   ryan.l.brown@gmail.com
+// (the account Ryan signs in with — see firebase-config.example.js
+// `ownerEmail`. If that account ever changes, update the email here AND
+// there; the two must agree.)
+//
+// Data lives in a single document, `pcc/main`, holding the whole `pcc-1`
+// record. Everything else is denied: there is no rule granting access to
+// any other collection, and Firestore denies by default, so an
+// unauthenticated or non-owner request gets PERMISSION_DENIED —
+// including list/enumeration attempts.
+//
+// These rules are the server-side enforcement. The app also checks the
+// owner email client-side (auth.js / firebase.js), but client checks are
+// a convenience only — the rules below are what actually protects the
+// data. Test them with the Firebase emulator or the Rules Playground
+// before relying on them (see docs/FIREBASE-SETUP.md — live rules
+// enforcement is UNTESTED until Ryan creates the Firebase project).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // The Command Center record. Owner only, read and write.
+    match /pcc/main {
+      allow read, write: if request.auth != null
+        && request.auth.token.email == 'ryan.l.brown@gmail.com';
+    }
+
+    // Deny everything else explicitly (defence in depth; default is deny).
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

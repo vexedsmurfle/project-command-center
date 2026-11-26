@@ -1,2 +1,7 @@
 data/exports/
+data/seed.json
+firebase-config.js
+screenshots/*-cards.png
+screenshots/*-project.png
+screenshots/*-tasks.png
 .DS_Store

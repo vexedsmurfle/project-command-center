@@ -33,8 +33,11 @@ documents by Task ID; it does not replace them.
 ## For Muse and Codex (via local repo + Drive)
 
 - Repo: `project-command-center` (see `docs/DEPLOYMENT.md` for the URL).
-  Clone, branch, edit `data/seed.json` or the app, run
-  `node tests/test-queue.js`, open a PR. No direct pushes to `main`.
+  Clone, branch, edit the app, run
+  `node tests/test-queue.js && node tests/test-secure.js`, open a PR.
+  No direct pushes to `main`. Never commit `firebase-config.js` or
+  `data/seed.json` (both gitignored); never put project records in the
+  repo.
 - Drive: `hatch_gws_cli drive files get/update/create` as in the existing
   exchange workflow. The JSON record is uploaded with `drive files
   create` (parents as an array inside the JSON body) or updated in place.
@@ -60,14 +63,15 @@ documents by Task ID; it does not replace them.
 2. **No dispatch without authorization.** `ready` means ready-for-review,
    not "go". Starting work needs Ryan's explicit authorization each time.
 3. **No invented progress.** If a status is unknown, say so. Provenance
-   is mandatory on seeded facts; "unknown" is a valid value.
+   is mandatory on recorded facts; "unknown" is a valid value.
 4. **No automatic merges or deployments.** PRs and deploys wait for Ryan.
 5. **One editor at a time** on the JSON record; export immediately after
    editing; conflicts are resolved by a human, never silently.
 
 ## Machine-readable entry points
 
-- Record: `data/seed.json` (format `pcc-1`, documented in
+- Record: the `pcc-1` JSON export (Drive Task Exchange folder) and the
+  owner-only Firestore document `pcc/main` (format documented in
   `docs/DATA-MODEL.md`).
 - Logic: core.js — `promoteIdea`, `dispatchTask`, `completeTask`,
   `acceptTask`, `addPrerequisite`, `blockersFor`, `mergeRecords`. Pure

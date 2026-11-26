@@ -1,10 +1,15 @@
 /* Project Command Center — browser app.
- * Storage: localStorage key 'pcc-store-v1' is a CACHE. Durable record is the
- * exported JSON (upload to Drive Task Exchange). Export/Import = sync.
- * Auth: local passcode (SHA-256) set on first use. This is a device lock,
- * not server auth — production deployments should use Firebase Auth /
- * Google sign-in (see docs/DEPLOYMENT.md). No data leaves the device
- * except via an explicit Export you upload yourself.
+ * Storage: localStorage key 'pcc-store-v1' is a CACHE. Durable records are
+ * the exported JSON (upload to Drive Task Exchange) and, once Firebase is
+ * configured, the owner-only Firestore document `pcc/main` (see
+ * docs/FIREBASE-SETUP.md). Export/Import = manual sync.
+ * Auth: Google sign-in via Firebase Auth when `firebase-config.js` is
+ * present (owner account only — enforced server-side by firestore.rules).
+ * Without it, a local passcode (SHA-256) set on first use. The passcode
+ * is a device lock, not server auth. No project data is ever fetched or
+ * rendered before the access gate passes (see auth.js). No data leaves
+ * the device except via an explicit Export you upload yourself, or a
+ * Firestore write after the owner signs in.
  */
 (function () {
   'use strict';
@@ -14,6 +19,7 @@
   var baseSnapshot = null; // last imported/exported snapshot, for conflict detection
   var currentProject = null;
   var currentTab = 'overview';
+  var cloudUser = null; // signed-in Firebase user, or null
   var $ = function (id) { return document.getElementById(id); };
 
   function toast(msg) {
@@ -28,6 +34,53 @@
   function save() {
     state.updatedAt = new Date().toISOString();
     localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    cloudSave();
+  }
+  function setSyncStatus(msg) {
+    var el = $('sync-status');
+    if (el) el.textContent = msg;
+  }
+  /* Write the record to Firestore when the owner is signed in.
+   * Silent no-op in local-only mode. Failures are shown, never hidden. */
+  function cloudSave() {
+    if (!window.PCFirebase || !PCFirebase.isConfigured() || !PCFirebase.currentUser()) return;
+    PCFirebase.saveState(state).then(function (ok) {
+      if (ok) setSyncStatus('Synced to Firestore · signed in as ' + PCFirebase.currentUser().email);
+    }).catch(function (e) {
+      setSyncStatus('Firestore save failed: ' + e.message + ' — local copy + Drive export still safe.');
+    });
+  }
+  /* After sign-in: pull the Firestore record if it is newer; push the
+   * local cache up on first sign-in (migration); otherwise stay local. */
+  function syncFromCloud() {
+    if (!window.PCFirebase || !PCFirebase.isConfigured() || !PCFirebase.currentUser()) return;
+    PCFirebase.loadState().then(function (cloud) {
+      if (!cloud) {
+        if (state.projects.length) {
+          return PCFirebase.saveState(state).then(function () {
+            setSyncStatus('Local records migrated to Firestore (first sign-in).');
+            audit('You (browser)', 'cloud-migrated', '', 'Local cache uploaded to Firestore on first sign-in.');
+            save();
+          });
+        }
+        setSyncStatus('Signed in — Firestore is empty. Import a JSON export to load projects.');
+        return;
+      }
+      if (!state.updatedAt || (cloud.updatedAt && cloud.updatedAt > state.updatedAt)) {
+        state = cloud;
+        baseSnapshot = JSON.parse(JSON.stringify(state));
+        localStorage.setItem(STORE_KEY, JSON.stringify(state));
+        setSyncStatus('Loaded newer record from Firestore.');
+        renderCards(); if (currentProject) renderDetail();
+      } else if (cloud.updatedAt && cloud.updatedAt < state.updatedAt) {
+        cloudSave();
+        setSyncStatus('Local record is newer — pushed to Firestore.');
+      } else {
+        setSyncStatus('Firestore in sync · signed in as ' + PCFirebase.currentUser().email);
+      }
+    }).catch(function (e) {
+      setSyncStatus('Firestore load failed: ' + e.message + ' — using the local cache.');
+    });
   }
   function audit(actor, action, itemId, detail) {
     state.audit.push({ at: new Date().toISOString(), actor: actor, action: action, itemId: itemId || '', detail: detail || '' });
@@ -78,7 +131,16 @@
   function enterApp(firstTime) {
     $('auth-gate').hidden = true;
     $('app').hidden = false;
-    if (firstTime) toast('Welcome — seed data loaded. Export JSON to Drive to make it durable.');
+    if (cloudUser) {
+      $('signout-btn').hidden = false;
+      setSyncStatus('Signed in as ' + cloudUser.email + ' — checking Firestore…');
+      syncFromCloud();
+    } else if (window.PCFirebase && PCFirebase.isConfigured()) {
+      setSyncStatus('Signed in — checking Firestore…');
+      syncFromCloud();
+    } else {
+      setSyncStatus('Local-only mode — Firebase not configured. See docs/FIREBASE-SETUP.md.');
+    }
     renderCards();
   }
 
@@ -87,19 +149,12 @@
     var raw = localStorage.getItem(STORE_KEY);
     if (raw) { try { state = JSON.parse(raw); } catch (e) { state = null; } }
     if (!state) {
-      // Seed from the bundled seed.json at first run.
-      fetch('data/seed.json').then(function (r) { return r.json(); }).then(function (seed) {
-        state = { version: 1, updatedAt: new Date().toISOString(), projects: seed.projects || [], audit: seed.audit || [] };
-        baseSnapshot = JSON.parse(JSON.stringify(state));
-        save();
-        renderCards();
-      }).catch(function () {
-        state = { version: 1, updatedAt: new Date().toISOString(), projects: [], audit: [] };
-        renderCards();
-      });
-    } else {
-      baseSnapshot = JSON.parse(JSON.stringify(state));
+      // No bundled seed any more: the public shell ships no project
+      // records. First run starts empty; data arrives after auth from
+      // Firestore, or from a Drive JSON import. See docs/FIREBASE-SETUP.md.
+      state = { version: 1, updatedAt: new Date().toISOString(), projects: [], audit: [] };
     }
+    baseSnapshot = JSON.parse(JSON.stringify(state));
   }
 
   /* ---------- rendering ---------- */
@@ -137,7 +192,16 @@
       btn.addEventListener('click', function () { openProject(p.id); });
       cards.appendChild(btn);
     });
-    if (!shown) cards.innerHTML = '<p class="muted">No projects match. Clear the search or filter.</p>';
+    if (!shown) {
+      if (!state.projects.length) {
+        cards.innerHTML = '<p class="muted"><strong>No projects loaded.</strong> ' +
+          'If you just signed in, use <strong>Import JSON</strong> above to load the record exported ' +
+          'from Drive, or wait for the Firestore sync. Project records are never shipped with ' +
+          'this page — they load only after authentication. See <code>docs/FIREBASE-SETUP.md</code>.</p>';
+      } else {
+        cards.innerHTML = '<p class="muted">No projects match. Clear the search or filter.</p>';
+      }
+    }
   }
   function openProject(id) {
     currentProject = state.projects.find(function (p) { return p.id === id; });
@@ -389,6 +453,7 @@
         }
         baseSnapshot = JSON.parse(JSON.stringify(state));
         renderCards(); if (currentProject) renderDetail();
+        cloudSave();
       } catch (e) { toast('Import failed: ' + e.message); }
     };
     reader.readAsText(file);
@@ -397,9 +462,41 @@
   /* ---------- wire up ---------- */
   document.addEventListener('DOMContentLoaded', function () {
     loadState();
+    /* Access gate: Firebase Google sign-in when configured, otherwise
+     * the local passcode. The gate state comes from auth.js; no project
+     * data is rendered or fetched before it passes. */
+    if (window.PCFirebase) {
+      PCFirebase.init().then(function (configured) {
+        if (configured) {
+          $('passcode-block').hidden = true;
+          $('google-block').hidden = false;
+          $('firebase-status').textContent = 'Firebase configured — sign in with Google (owner account only).';
+        } else {
+          $('firebase-status').textContent = 'Firebase not configured — local-only mode. See docs/FIREBASE-SETUP.md to enable Google sign-in + Firestore sync.';
+        }
+      });
+    }
+    document.addEventListener('pcc-auth-changed', function (e) {
+      cloudUser = e.detail && e.detail.user ? e.detail.user : null;
+    });
+    $('google-signin-btn').addEventListener('click', function () {
+      $('auth-msg').textContent = '';
+      PCFirebase.signInWithGoogle().then(function (user) {
+        cloudUser = user;
+        enterApp(false);
+        toast('Signed in as ' + user.email + '.');
+      }).catch(function (e) {
+        $('auth-msg').textContent = e.message;
+      });
+    });
     $('unlock-btn').addEventListener('click', unlock);
     $('passcode').addEventListener('keydown', function (e) { if (e.key === 'Enter') unlock(); });
     $('lock-btn').addEventListener('click', function () { location.reload(); });
+    $('signout-btn').addEventListener('click', function () {
+      if (window.PCFirebase && PCFirebase.isConfigured()) {
+        PCFirebase.signOut().then(function () { location.reload(); });
+      } else { location.reload(); }
+    });
     $('search').addEventListener('input', renderCards);
     $('status-filter').addEventListener('change', renderCards);
     $('export-btn').addEventListener('click', exportJson);
